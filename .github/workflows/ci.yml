@@ -17,7 +17,6 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      id-token: write
 
     steps:
       - name: Check out repository
@@ -30,10 +29,3 @@ jobs:
 
       - name: Run offline checks
         run: nix develop --command just check
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
-        with:
-          fail_ci_if_error: true
-          files: coverage.xml
-          use_oidc: true

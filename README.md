@@ -1,7 +1,6 @@
 # Page-cited RAG CLI
 
 [![CI](https://github.com/gpuslave/simple-rag/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gpuslave/simple-rag/actions/workflows/ci.yml)
-[![Coverage](https://codecov.io/github/gpuslave/simple-rag/graph/badge.svg?branch=main)](https://codecov.io/github/gpuslave/simple-rag)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 
 Python 3.12 CLI for a local PDF corpus, RouterAI models, and page-level citations.
