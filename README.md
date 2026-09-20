@@ -23,6 +23,7 @@ A Python CLI that answers questions from a PDF corpus and attaches validated PDF
 
 - Nix with flakes enabled
 - A RouterAI API key
+- Docker with Compose v2 when using the container workflow
 
 PDF text is sent to the configured external embedding service during synchronization. When you ask a question, the question and retrieved excerpts are sent to the configured generation model. Do not index documents that you are not permitted to share with those services.
 
@@ -82,6 +83,71 @@ just sync rag.toml --json
 ```
 
 Each question is independent. Run `sync` again after adding, changing, or removing PDFs. The configured corpus is authoritative, so a successful synchronization also removes indexed documents that no longer exist in the corpus directory. Use `--dry-run` before applying uncertain changes.
+
+## Container image
+
+SemVer releases are published to GitHub Container Registry for Linux on AMD64 and ARM64. The image contains Python, the application, locked runtime dependencies, and a default configuration for `/data/corpus` and `/data/state`. It never contains API credentials, PDFs, or an index.
+
+Use the versioned image directly with a read-only corpus and a persistent state volume:
+
+```bash
+export ROUTERAI_API_KEY='your-api-key'
+export RAG_IMAGE='ghcr.io/gpuslave/simple-rag:0.1.0'
+
+docker volume create page-rag-state
+
+rag_container() {
+  docker run --rm \
+    --read-only \
+    --tmpfs /tmp:size=64m,mode=1777 \
+    --cap-drop ALL \
+    --security-opt no-new-privileges \
+    --env ROUTERAI_API_KEY \
+    --volume "$PWD/examples:/data/corpus:ro" \
+    --volume page-rag-state:/data/state \
+    "$RAG_IMAGE" "$@"
+}
+
+rag_container doctor
+rag_container sync --dry-run
+rag_container sync
+rag_container ask "Чем знания отличаются от данных?"
+```
+
+The `latest` tag points to the newest SemVer release. Prefer an explicit version in automated environments.
+
+To override the built-in configuration, mount a TOML file at `/app/rag.toml`. Its corpus and state paths must refer to container paths, normally `/data/corpus` and `/data/state`.
+
+## Docker Compose
+
+Compose provides the same mounts and runtime hardening with shorter commands. Select the host corpus through `RAG_CORPUS_PATH`; it defaults to `./examples`.
+
+Build the image locally and run the CLI:
+
+```bash
+export ROUTERAI_API_KEY='your-api-key'
+export RAG_CORPUS_PATH="$PWD/examples"
+
+docker compose build
+docker compose run --rm rag doctor
+docker compose run --rm rag sync --dry-run
+docker compose run --rm rag sync
+docker compose run --rm rag ask "Чем знания отличаются от данных?"
+```
+
+To use a published image instead of building locally:
+
+```bash
+export RAG_IMAGE='ghcr.io/gpuslave/simple-rag:0.1.0'
+docker compose pull rag
+docker compose run --rm rag doctor
+```
+
+The `page-rag_rag-state` volume keeps the Qdrant index when one-shot containers exit. Remove the stored index deliberately with:
+
+```bash
+docker compose down --volumes
+```
 
 ## Commands
 

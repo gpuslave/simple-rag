@@ -1,0 +1,30 @@
+name: page-rag
+
+services:
+  rag:
+    image: ${RAG_IMAGE:-page-rag:local}
+    build:
+      context: .
+      args:
+        VERSION: ${RAG_VERSION:-0.1.0}
+        VCS_REF: ${RAG_VCS_REF:-local}
+    environment:
+      ROUTERAI_API_KEY: ${ROUTERAI_API_KEY:?ROUTERAI_API_KEY is required}
+    volumes:
+      - type: bind
+        source: ${RAG_CORPUS_PATH:-./examples}
+        target: /data/corpus
+        read_only: true
+      - type: volume
+        source: rag-state
+        target: /data/state
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  rag-state:
