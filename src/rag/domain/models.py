@@ -95,4 +95,3 @@ class IndexFingerprint(DomainModel):
     chunk_size: int = Field(gt=0)
     chunk_overlap: int = Field(ge=0)
     created_at: datetime | None = None
-

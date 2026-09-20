@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from rag.config import ConfigurationError, DEFAULT_GATEWAY_URL, load_config
+from rag.config import DEFAULT_GATEWAY_URL, ConfigurationError, load_config
 
 
 def write_config(path: Path, extra: str = "") -> None:
@@ -13,7 +13,8 @@ path = "documents"
 [models]
 generation = "vendor/generation"
 embedding = "vendor/embedding"
-""" + extra,
+"""
+        + extra,
         encoding="utf-8",
     )
 
@@ -55,7 +56,9 @@ def test_missing_secret_is_actionable_and_never_prints_other_environment(
     path = tmp_path / "rag.toml"
     write_config(path)
 
-    with pytest.raises(ConfigurationError, match="ROUTERAI_API_KEY is required") as error:
+    with pytest.raises(
+        ConfigurationError, match="ROUTERAI_API_KEY is required"
+    ) as error:
         load_config(path, {"UNRELATED_SECRET": "must-not-leak"})
 
     assert "must-not-leak" not in str(error.value)
@@ -67,4 +70,3 @@ def test_missing_model_is_actionable(tmp_path: Path) -> None:
 
     with pytest.raises(ConfigurationError, match="generation_model"):
         load_config(path, {"ROUTERAI_API_KEY": "secret"})
-

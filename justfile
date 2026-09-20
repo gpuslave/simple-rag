@@ -11,7 +11,21 @@ setup:
 
 # Run the offline test suite.
 test:
-    uv run --locked pytest
+    uv run --locked pytest -m "not live"
+
+# Check Python lint rules and formatting without changing files.
+lint:
+    uv run --locked ruff check src tests
+    uv run --locked ruff format --check src tests
+
+# Apply safe lint fixes and format Python files.
+format:
+    uv run --locked ruff check --fix src tests
+    uv run --locked ruff format src tests
+
+# Run strict static type checking.
+typecheck:
+    uv run --locked mypy src tests
 
 # Run live local and RouterAI readiness checks.
 doctor config="rag.toml.example":
@@ -20,7 +34,10 @@ doctor config="rag.toml.example":
 # Verify the lockfile and run all offline checks.
 check:
     uv lock --check
-    uv run --locked pytest
+    uv run --locked ruff check src tests
+    uv run --locked ruff format --check src tests
+    uv run --locked mypy src tests
+    uv run --locked pytest -m "not live"
     uv run --locked rag --help > /dev/null
 
 # Build the source distribution and wheel.

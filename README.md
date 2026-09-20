@@ -15,9 +15,12 @@ Run `just` to list every available command:
 ```text
 just setup                 # install locked dependencies
 just test                  # run offline tests
+just lint                  # check Python lint rules and formatting
+just format                # apply safe lint fixes and formatting
+just typecheck             # run strict static type checks
 just doctor                # run live readiness checks
 just doctor rag.toml       # use another configuration file
-just check                 # verify lockfile, tests, and CLI
+just check                 # run every offline CI check
 just build                 # build wheel and source package
 ```
 

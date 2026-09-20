@@ -43,4 +43,6 @@ class CorpusSynchronizer(Protocol):
 
 
 class ChunkStore(Protocol):
-    def upsert(self, chunks: Sequence[Chunk], vectors: Sequence[Sequence[float]]) -> None: ...
+    def upsert(
+        self, chunks: Sequence[Chunk], vectors: Sequence[Sequence[float]]
+    ) -> None: ...

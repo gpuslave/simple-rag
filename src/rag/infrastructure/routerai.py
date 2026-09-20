@@ -15,7 +15,9 @@ class GatewayDiagnosticError(RuntimeError):
 
 
 class RouterAIDiagnostics:
-    def __init__(self, config: AppConfig, *, transport: httpx.BaseTransport | None = None):
+    def __init__(
+        self, config: AppConfig, *, transport: httpx.BaseTransport | None = None
+    ):
         self._config = config
         self._client = httpx.Client(
             base_url=config.gateway_base_url + "/",
@@ -54,7 +56,9 @@ class RouterAIDiagnostics:
         payload = self._json(response, "model capability response")
         endpoints = payload.get("data", {}).get("endpoints")
         if not isinstance(endpoints, list):
-            raise GatewayDiagnosticError("model capability response has no endpoint list")
+            raise GatewayDiagnosticError(
+                "model capability response has no endpoint list"
+            )
         return [item for item in endpoints if isinstance(item, dict)]
 
     def _embedding_dimension(self, model: str) -> int:
@@ -69,7 +73,9 @@ class RouterAIDiagnostics:
         if not isinstance(vector, list) or not vector:
             raise GatewayDiagnosticError("embedding response contains an empty vector")
         if not all(isinstance(value, (int, float)) for value in vector):
-            raise GatewayDiagnosticError("embedding response contains a non-numeric vector")
+            raise GatewayDiagnosticError(
+                "embedding response contains a non-numeric vector"
+            )
         return len(vector)
 
     def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
@@ -118,7 +124,9 @@ class RouterAIDiagnostics:
             if routing.country:
                 country = routing.country.lower()
                 eligible = [
-                    item for item in eligible if str(item.get("country", "")).lower() == country
+                    item
+                    for item in eligible
+                    if str(item.get("country", "")).lower() == country
                 ]
 
         capable: list[str] = []

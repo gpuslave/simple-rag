@@ -103,4 +103,3 @@ def load_config(path: Path, environ: dict[str, str] | None = None) -> AppConfig:
         first = exc.errors(include_url=False, include_input=False)[0]
         location = ".".join(str(part) for part in first["loc"])
         raise ConfigurationError(f"invalid setting {location}: {first['msg']}") from exc
-

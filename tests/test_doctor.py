@@ -112,7 +112,9 @@ def test_invalid_model_is_actionable(tmp_path: Path) -> None:
         settings,
         transport=httpx.MockTransport(lambda _: httpx.Response(404)),
     ) as gateway:
-        with pytest.raises(GatewayDiagnosticError, match="model or endpoint was not found"):
+        with pytest.raises(
+            GatewayDiagnosticError, match="model or endpoint was not found"
+        ):
             gateway.probe()
 
 
@@ -122,7 +124,9 @@ def test_invalid_api_key_does_not_leak_secret(tmp_path: Path) -> None:
         settings,
         transport=httpx.MockTransport(lambda _: httpx.Response(401)),
     ) as gateway:
-        with pytest.raises(GatewayDiagnosticError, match="rejected ROUTERAI_API_KEY") as error:
+        with pytest.raises(
+            GatewayDiagnosticError, match="rejected ROUTERAI_API_KEY"
+        ) as error:
             gateway.probe()
     assert "secret" not in str(error.value)
 

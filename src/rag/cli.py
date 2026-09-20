@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Annotated
 
 import typer
 
@@ -22,9 +23,10 @@ def root() -> None:
 
 @app.command()
 def doctor(
-    config_path: Path = typer.Option(
-        Path("rag.toml"), "--config", help="Path to the TOML configuration file."
-    ),
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", help="Path to the TOML configuration file."),
+    ] = Path("rag.toml"),
 ) -> None:
     """Verify local paths, credentials, and configured model capabilities."""
     try:
@@ -38,7 +40,9 @@ def doctor(
     typer.echo("ready")
     typer.echo(f"corpus: {report.corpus_path}")
     typer.echo(f"state: {report.state_path}")
-    typer.echo(f"generation model: {report.generation_model} (strict structured output)")
+    typer.echo(
+        f"generation model: {report.generation_model} (strict structured output)"
+    )
     typer.echo(
         f"embedding model: {report.embedding_model} ({report.vector_dimension} dimensions)"
     )

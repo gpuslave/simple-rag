@@ -28,4 +28,3 @@ def test_cli_never_echoes_api_key(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "highly-secret-value" not in result.output
-
