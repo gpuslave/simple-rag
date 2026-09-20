@@ -43,6 +43,10 @@ doctor config="rag.toml.example":
 sync config="rag.toml.example" *args:
     uv run --locked rag sync --config "{{ config }}" {{ args }}
 
+# Answer one independent question from indexed PDF evidence.
+ask question config="rag.toml.example" *args:
+    uv run --locked rag ask "{{ question }}" --config "{{ config }}" {{ args }}
+
 # Verify the lockfile and run all offline checks.
 check:
     uv lock --check

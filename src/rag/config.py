@@ -53,6 +53,22 @@ class ChunkingConfig(BaseModel):
         return self
 
 
+class RetrievalConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    candidate_limit: int = Field(default=30, gt=0)
+    max_chunks_per_page: int = Field(default=3, gt=0)
+    evidence_limit: int = Field(default=15, gt=0)
+
+    @model_validator(mode="after")
+    def limits_are_consistent(self) -> RetrievalConfig:
+        if self.evidence_limit > self.candidate_limit:
+            raise ValueError("evidence_limit cannot exceed candidate_limit")
+        if self.max_chunks_per_page > self.evidence_limit:
+            raise ValueError("max_chunks_per_page cannot exceed evidence_limit")
+        return self
+
+
 class AppConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -62,6 +78,7 @@ class AppConfig(BaseModel):
     gateway_base_url: str = DEFAULT_GATEWAY_URL
     state_path: Path = Path(".rag-state")
     chunking: ChunkingConfig = ChunkingConfig()
+    retrieval: RetrievalConfig = RetrievalConfig()
     provider_routing: ProviderRouting | None = None
     api_key: str = Field(repr=False, min_length=1)
 
@@ -97,9 +114,18 @@ def load_config(path: Path, environ: dict[str, str] | None = None) -> AppConfig:
     gateway = _table(data, "gateway")
     state = _table(data, "state")
     chunking = _table(data, "chunking")
+    retrieval = _table(data, "retrieval")
     generation = _table(data, "generation")
 
-    allowed = {"corpus", "models", "gateway", "state", "chunking", "generation"}
+    allowed = {
+        "corpus",
+        "models",
+        "gateway",
+        "state",
+        "chunking",
+        "retrieval",
+        "generation",
+    }
     unknown = sorted(set(data) - allowed)
     if unknown:
         raise ConfigurationError(f"unknown top-level setting: {unknown[0]}")
@@ -117,6 +143,7 @@ def load_config(path: Path, environ: dict[str, str] | None = None) -> AppConfig:
         "gateway_base_url": gateway.get("base_url", DEFAULT_GATEWAY_URL),
         "state_path": state.get("path", ".rag-state"),
         "chunking": chunking,
+        "retrieval": retrieval,
         "provider_routing": generation.get("provider"),
         "api_key": api_key,
     }

@@ -31,6 +31,9 @@ def test_loads_required_settings_and_defaults(tmp_path: Path) -> None:
     assert config.provider_routing is None
     assert config.chunking.size == 800
     assert config.chunking.overlap == 100
+    assert config.retrieval.candidate_limit == 30
+    assert config.retrieval.max_chunks_per_page == 3
+    assert config.retrieval.evidence_limit == 15
 
 
 def test_loads_optional_provider_routing(tmp_path: Path) -> None:
@@ -89,4 +92,34 @@ def test_rejects_chunk_overlap_equal_to_size(tmp_path: Path) -> None:
     write_config(path, "\n[chunking]\nsize = 10\noverlap = 10\n")
 
     with pytest.raises(ConfigurationError, match="overlap must be smaller"):
+        load_config(path, {"ROUTERAI_API_KEY": "secret"})
+
+
+def test_loads_retrieval_settings(tmp_path: Path) -> None:
+    path = tmp_path / "rag.toml"
+    write_config(
+        path,
+        "\n[retrieval]\ncandidate_limit = 20\nmax_chunks_per_page = 2\n"
+        "evidence_limit = 10\n",
+    )
+
+    config = load_config(path, {"ROUTERAI_API_KEY": "secret"})
+
+    assert config.retrieval.candidate_limit == 20
+    assert config.retrieval.max_chunks_per_page == 2
+    assert config.retrieval.evidence_limit == 10
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        "candidate_limit = 2\nevidence_limit = 3",
+        "max_chunks_per_page = 4\nevidence_limit = 3",
+    ],
+)
+def test_rejects_inconsistent_retrieval_limits(tmp_path: Path, settings: str) -> None:
+    path = tmp_path / "rag.toml"
+    write_config(path, f"\n[retrieval]\n{settings}\n")
+
+    with pytest.raises(ConfigurationError, match="cannot exceed"):
         load_config(path, {"ROUTERAI_API_KEY": "secret"})

@@ -76,20 +76,20 @@ Source architecture: [PLAN.md](PLAN.md)
 
 **Blocked by:** 02: Index the first PDF into local Qdrant.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] The question is embedded with the same configured Embedding Model and collection contract used for ingestion.
-- [ ] Dense retrieval fetches 30 candidates, removes duplicate evidence, limits evidence to three chunks per page, and supplies at most 15 chunks to generation.
-- [ ] Retrieval applies no arbitrary similarity threshold.
-- [ ] Retrieved chunks receive stable request-local source IDs and carry filename, viewer page, optional page label, score, and text into answer generation.
-- [ ] The Generation Model receives only the question, instructions, and retrieved evidence and is instructed to answer in Russian without outside knowledge.
-- [ ] Strict output represents either an answered result containing factual claims with source IDs or an `insufficient_evidence` result with no claims.
-- [ ] Validation rejects malformed output, empty citations on factual claims, duplicate source IDs, and source IDs not present in retrieved evidence.
-- [ ] Invalid model output fails without printing an unvalidated answer.
-- [ ] Insufficient evidence renders a fixed Russian refusal.
-- [ ] Human output attaches `[filename, PDF p. N, label X]` citations to each factual claim and omits unavailable labels.
-- [ ] `--json` includes status, claims, citations, paths, pages, labels, scores, excerpts, and the configured model slugs.
-- [ ] Tests cover Russian and English evidence, ranking and per-page limits, valid multi-source claims, refusal, malformed output, invented sources, human rendering, and JSON output.
+- [x] The question is embedded with the same configured Embedding Model and collection contract used for ingestion.
+- [x] Dense retrieval fetches 30 candidates, removes duplicate evidence, limits evidence to three chunks per page, and supplies at most 15 chunks to generation.
+- [x] Retrieval applies no arbitrary similarity threshold.
+- [x] Retrieved chunks receive stable request-local source IDs and carry filename, viewer page, optional page label, score, and text into answer generation.
+- [x] The Generation Model receives only the question, instructions, and retrieved evidence and is instructed to answer in Russian without outside knowledge.
+- [x] Strict output represents either an answered result containing factual claims with source IDs or an `insufficient_evidence` result with no claims.
+- [x] Validation rejects malformed output, empty citations on factual claims, duplicate source IDs, and source IDs not present in retrieved evidence.
+- [x] Invalid model output fails without printing an unvalidated answer.
+- [x] Insufficient evidence renders a fixed Russian refusal.
+- [x] Human output attaches `[filename, PDF p. N, label X]` citations to each factual claim and omits unavailable labels.
+- [x] `--json` includes status, claims, citations, paths, pages, labels, scores, excerpts, and the configured model slugs.
+- [x] Tests cover Russian and English evidence, ranking and per-page limits, valid multi-source claims, refusal, malformed output, invented sources, human rendering, and JSON output.
 
 # 05: Inspect and rebuild incompatible indexes
 

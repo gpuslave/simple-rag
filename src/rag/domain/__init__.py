@@ -2,10 +2,12 @@
 
 from rag.domain.models import (
     AnswerResult,
+    AnswerStatus,
     Chunk,
     Citation,
     Claim,
     Document,
+    GeneratedAnswer,
     IndexedDocumentVersion,
     IndexFingerprint,
     Page,
@@ -21,10 +23,12 @@ from rag.domain.models import (
 
 __all__ = [
     "AnswerResult",
+    "AnswerStatus",
     "Chunk",
     "Citation",
     "Claim",
     "Document",
+    "GeneratedAnswer",
     "IndexFingerprint",
     "IndexedDocumentVersion",
     "Page",

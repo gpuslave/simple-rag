@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from rag.domain import (
-    AnswerResult,
     Chunk,
     Document,
+    GeneratedAnswer,
     IndexedDocumentVersion,
     Page,
     RetrievedChunk,
@@ -38,10 +38,12 @@ class PageChunker(Protocol):
     def split(self, document: Document, pages: Sequence[Page]) -> Sequence[Chunk]: ...
 
 
-class EmbeddingProvider(Protocol):
-    def embed_documents(self, texts: Sequence[str]) -> Sequence[Sequence[float]]: ...
-
+class QueryEmbeddingProvider(Protocol):
     def embed_query(self, text: str) -> Sequence[float]: ...
+
+
+class EmbeddingProvider(QueryEmbeddingProvider, Protocol):
+    def embed_documents(self, texts: Sequence[str]) -> Sequence[Sequence[float]]: ...
 
 
 class Retriever(Protocol):
@@ -51,7 +53,7 @@ class Retriever(Protocol):
 class AnswerGenerator(Protocol):
     def generate(
         self, question: str, evidence: Sequence[RetrievedChunk]
-    ) -> AnswerResult: ...
+    ) -> GeneratedAnswer: ...
 
 
 class CorpusSynchronizer(Protocol):
@@ -80,3 +82,11 @@ class SyncOperationError(RuntimeError):
 
 class CorpusSourceError(RuntimeError):
     """A safe-to-display corpus discovery failure."""
+
+
+class RetrievalError(RuntimeError):
+    """A safe-to-display retrieval failure."""
+
+
+class AnswerGenerationError(RuntimeError):
+    """A safe-to-display generation failure."""

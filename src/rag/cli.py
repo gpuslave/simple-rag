@@ -6,16 +6,20 @@ from typing import Annotated
 
 import typer
 
+from rag.application.ask import AnswerQuestion, AnswerValidationError
 from rag.application.doctor import LocalDiagnosticError, run_doctor
 from rag.application.sync import SyncCorpus, SyncExecutionError
 from rag.config import AppConfig, ConfigurationError, load_config
-from rag.domain import SyncReport
+from rag.domain import AnswerResult, AnswerStatus, SyncReport
 from rag.infrastructure.chunking import LangChainPageChunker
 from rag.infrastructure.embeddings import RouterAIEmbeddings
 from rag.infrastructure.filesystem import LocalCorpusSource
+from rag.infrastructure.generation import RouterAIAnswerGenerator
 from rag.infrastructure.pdf import PyMuPdfExtractor
 from rag.infrastructure.qdrant import LangChainQdrantChunkIndex
+from rag.infrastructure.retrieval import QdrantDenseRetriever
 from rag.infrastructure.routerai import GatewayDiagnosticError, RouterAIDiagnostics
+from rag.ports import AnswerGenerationError, RetrievalError
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -71,6 +75,18 @@ def _build_synchronizer(config: AppConfig) -> SyncCorpus:
     )
 
 
+def _build_answerer(config: AppConfig) -> AnswerQuestion:
+    embeddings = RouterAIEmbeddings(config)
+    retrieval = config.retrieval
+    return AnswerQuestion(
+        retriever=QdrantDenseRetriever(config.state_path, embeddings),
+        generator=RouterAIAnswerGenerator(config),
+        candidate_limit=retrieval.candidate_limit,
+        max_chunks_per_page=retrieval.max_chunks_per_page,
+        evidence_limit=retrieval.evidence_limit,
+    )
+
+
 def _render_sync_report(report: SyncReport) -> None:
     typer.echo(f"mode: {'dry-run' if report.dry_run else 'apply'}")
     typer.echo(f"indexed documents: {report.indexed_documents}")
@@ -119,6 +135,72 @@ def sync_command(
         _render_sync_report(report)
     if report.failures:
         raise typer.Exit(code=1)
+
+
+INSUFFICIENT_EVIDENCE_MESSAGE = (
+    "Недостаточно данных в проиндексированных документах для ответа."
+)
+
+
+def _render_answer(result: AnswerResult) -> None:
+    if result.status is AnswerStatus.INSUFFICIENT_EVIDENCE:
+        typer.echo(INSUFFICIENT_EVIDENCE_MESSAGE)
+        return
+
+    citations = {citation.source_id: citation for citation in result.citations}
+    for claim in result.claims:
+        rendered: list[str] = []
+        for source_id in claim.source_ids:
+            citation = citations[source_id]
+            label = (
+                f", label {citation.page_label}"
+                if citation.page_label is not None
+                else ""
+            )
+            rendered.append(
+                f"[{citation.filename}, PDF p. {citation.viewer_page}{label}]"
+            )
+        typer.echo(f"{claim.text} {' '.join(rendered)}")
+
+
+def _answer_json(result: AnswerResult, config: AppConfig) -> str:
+    payload = result.model_dump(mode="json")
+    payload["models"] = {
+        "generation": config.generation_model,
+        "embedding": config.embedding_model,
+    }
+    return json.dumps(payload, ensure_ascii=False)
+
+
+@app.command("ask")
+def ask_command(
+    question: Annotated[str, typer.Argument(help="Independent question to answer.")],
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", help="Path to the TOML configuration file."),
+    ] = Path("rag.toml"),
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit the validated answer as JSON."),
+    ] = False,
+) -> None:
+    """Answer one question using only indexed PDF evidence."""
+    try:
+        config = load_config(config_path)
+        result = _build_answerer(config).answer(question)
+    except (
+        ConfigurationError,
+        RetrievalError,
+        AnswerGenerationError,
+        AnswerValidationError,
+    ) as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=1) from None
+
+    if json_output:
+        typer.echo(_answer_json(result, config))
+    else:
+        _render_answer(result)
 
 
 def main() -> None:

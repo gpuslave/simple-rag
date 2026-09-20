@@ -64,6 +64,13 @@ class AnswerStatus(StrEnum):
     INSUFFICIENT_EVIDENCE = "insufficient_evidence"
 
 
+class GeneratedAnswer(DomainModel):
+    """Untrusted structured output returned by the Generation Model."""
+
+    status: AnswerStatus
+    claims: tuple[Claim, ...]
+
+
 class AnswerResult(DomainModel):
     status: AnswerStatus
     claims: tuple[Claim, ...] = ()

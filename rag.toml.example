@@ -15,6 +15,11 @@ path = ".rag-state"
 size = 800
 overlap = 100
 
+[retrieval]
+candidate_limit = 30
+max_chunks_per_page = 3
+evidence_limit = 15
+
 # Optional. Delete this whole table to leave RouterAI routing unrestricted.
 # [generation.provider]
 # order = ["z-ai"]
