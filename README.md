@@ -116,7 +116,7 @@ Run `just` to list all available commands.
 The application has two connected paths: `sync` prepares searchable evidence, and `ask` retrieves that evidence before generating an answer.
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph sync [Corpus synchronization]
         PDFs[PDF corpus] --> Pages[Page extraction]
         Pages --> Chunks[Page-bounded chunks]
