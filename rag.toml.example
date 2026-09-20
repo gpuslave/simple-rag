@@ -1,0 +1,19 @@
+[corpus]
+path = "examples"
+
+[models]
+generation = "z-ai/glm-5.3-flash"
+embedding = "baai/bge-m3"
+
+[gateway]
+base_url = "https://routerai.ru/api/v1"
+
+[state]
+path = ".rag-state"
+
+# Optional. Delete this whole table to leave RouterAI routing unrestricted.
+# [generation.provider]
+# order = ["z-ai"]
+# allow_fallbacks = true
+# country = "ru"
+
