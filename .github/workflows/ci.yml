@@ -26,13 +26,13 @@ jobs:
           persist-credentials: false
 
       - name: Install Nix
-        uses: DeterminateSystems/determinate-nix-action@v3
+        uses: cachix/install-nix-action@v31
 
       - name: Run offline checks
         run: nix develop --command just check
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
           files: coverage.xml
