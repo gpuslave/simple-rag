@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/gpuslave/simple-rag/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gpuslave/simple-rag/actions/workflows/ci.yml)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Python 3.12 CLI for a local PDF corpus, RouterAI models, and page-level citations.
 
