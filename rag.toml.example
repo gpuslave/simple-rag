@@ -21,7 +21,7 @@ max_chunks_per_page = 3
 evidence_limit = 15
 
 [generation]
-reasoning_effort = "low"
+reasoning_effort = "high"
 temperature = 0.2
 max_tokens = 8192
 
