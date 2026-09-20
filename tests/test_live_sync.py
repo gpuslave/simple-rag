@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from rag.application.sync import SyncCorpus
-from rag.config import AppConfig
+from rag.config import AppConfig, GenerationConfig
 from rag.infrastructure.chunking import LangChainPageChunker
 from rag.infrastructure.embeddings import RouterAIEmbeddings
 from rag.infrastructure.filesystem import LocalCorpusSource
@@ -27,6 +27,9 @@ def test_live_routerai_sync_persists_sample_and_skips_second_embedding(
         generation_model="z-ai/glm-5.3-flash",
         embedding_model="baai/bge-m3",
         state_path=tmp_path / "state",
+        generation=GenerationConfig(
+            reasoning_effort="low", temperature=0.2, max_tokens=8192
+        ),
         api_key=api_key,
     )
     synchronizer = SyncCorpus(

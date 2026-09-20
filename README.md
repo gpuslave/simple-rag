@@ -46,7 +46,16 @@ just doctor rag.toml
 
 `doctor` checks that the corpus exists, local state is writable, an eligible generation endpoint advertises strict structured outputs, and the embedding model returns a non-empty numeric vector. The embedding probe is a live API request.
 
-Provider routing under `[generation.provider]` is optional. Omitting the table leaves RouterAI routing unrestricted.
+Generation behavior is explicit and required:
+
+```toml
+[generation]
+reasoning_effort = "low"
+temperature = 0.2
+max_tokens = 8192
+```
+
+`reasoning_effort` accepts `low`, `high`, or `max`; temperature accepts values from 0 through 2; and `max_tokens` must be positive. We use low reasoning and conservative sampling for economical, grounded answers. Top-p, seed, penalties, and reasoning output remain unset. Provider routing under `[generation.provider]` is optional; omitting it leaves RouterAI routing unrestricted.
 
 `sync` recursively treats the configured corpus as authoritative. It adds and updates PDFs before removing older versions, skips unchanged content without embedding it, and removes missing PDFs only after every present PDF succeeds. Use `--dry-run` to inspect the same human or JSON change report without modifying Qdrant.
 

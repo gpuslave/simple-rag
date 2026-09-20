@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from rag.application.doctor import LocalDiagnosticError, check_local_paths, run_doctor
-from rag.config import AppConfig, ProviderRouting
+from rag.config import AppConfig, GenerationConfig, ProviderRouting
 from rag.infrastructure.routerai import GatewayDiagnosticError, RouterAIDiagnostics
 from rag.ports import GatewayProbe
 
@@ -17,7 +17,12 @@ def config(tmp_path: Path, routing: ProviderRouting | None = None) -> AppConfig:
         generation_model="vendor/generator",
         embedding_model="vendor/embedder",
         state_path=tmp_path / "state",
-        provider_routing=routing,
+        generation=GenerationConfig(
+            reasoning_effort="low",
+            temperature=0.2,
+            max_tokens=8192,
+            provider=routing,
+        ),
         api_key="secret",
     )
 
@@ -32,7 +37,12 @@ def successful_transport(request: httpx.Request) -> httpx.Response:
                         {
                             "tag": "good",
                             "country": "ru",
-                            "supported_parameters": ["structured_outputs"],
+                            "supported_parameters": [
+                                "max_tokens",
+                                "reasoning",
+                                "structured_outputs",
+                                "temperature",
+                            ],
                         }
                     ]
                 }
@@ -57,6 +67,9 @@ def test_application_diagnostics_depend_on_port(tmp_path: Path) -> None:
 
     assert report.vector_dimension == 7
     assert report.structured_output_endpoints == ("fake",)
+    assert report.reasoning_effort == "low"
+    assert report.temperature == 0.2
+    assert report.max_tokens == 8192
 
 
 def test_successful_mocked_diagnostics(tmp_path: Path) -> None:
@@ -82,7 +95,7 @@ def test_rejects_generation_model_without_strict_output(tmp_path: Path) -> None:
     with RouterAIDiagnostics(
         settings, transport=httpx.MockTransport(transport)
     ) as gateway:
-        with pytest.raises(GatewayDiagnosticError, match="strict structured outputs"):
+        with pytest.raises(GatewayDiagnosticError, match="structured_outputs"):
             gateway.probe()
 
 
@@ -92,7 +105,7 @@ def test_routing_filters_capability_endpoints(tmp_path: Path) -> None:
     with RouterAIDiagnostics(
         settings, transport=httpx.MockTransport(successful_transport)
     ) as gateway:
-        with pytest.raises(GatewayDiagnosticError, match="strict structured outputs"):
+        with pytest.raises(GatewayDiagnosticError, match="max_tokens"):
             gateway.probe()
 
 
@@ -137,6 +150,9 @@ def test_missing_corpus_fails_before_remote_probe(tmp_path: Path) -> None:
         generation_model="vendor/generator",
         embedding_model="vendor/embedder",
         state_path=tmp_path / "state",
+        generation=GenerationConfig(
+            reasoning_effort="low", temperature=0.2, max_tokens=8192
+        ),
         api_key="secret",
     )
     with pytest.raises(LocalDiagnosticError, match="corpus directory"):

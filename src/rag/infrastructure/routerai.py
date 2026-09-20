@@ -9,6 +9,10 @@ import httpx
 from rag.config import AppConfig, ProviderRouting
 from rag.ports import GatewayProbe
 
+REQUIRED_GENERATION_PARAMETERS = frozenset(
+    {"max_tokens", "reasoning", "structured_outputs", "temperature"}
+)
+
 
 class GatewayDiagnosticError(RuntimeError):
     """A safe-to-display gateway diagnostic failure."""
@@ -37,12 +41,13 @@ class RouterAIDiagnostics:
 
     def probe(self) -> GatewayProbe:
         endpoints = self._model_endpoints(self._config.generation_model)
-        capable = self._structured_output_endpoints(
-            endpoints, self._config.provider_routing
+        capable, missing = self._generation_endpoints(
+            endpoints, self._config.generation.provider
         )
         if not capable:
             raise GatewayDiagnosticError(
-                "generation model has no eligible endpoint advertising strict structured outputs"
+                "generation model has no eligible endpoint supporting required "
+                f"parameters; closest endpoint is missing: {', '.join(missing)}"
             )
         dimension = self._embedding_dimension(self._config.embedding_model)
         return GatewayProbe(
@@ -110,9 +115,9 @@ class RouterAIDiagnostics:
         return payload
 
     @staticmethod
-    def _structured_output_endpoints(
+    def _generation_endpoints(
         endpoints: Sequence[dict[str, Any]], routing: ProviderRouting | None
-    ) -> list[str]:
+    ) -> tuple[list[str], tuple[str, ...]]:
         eligible = list(endpoints)
         if routing:
             if routing.only:
@@ -130,8 +135,18 @@ class RouterAIDiagnostics:
                 ]
 
         capable: list[str] = []
+        missing_by_endpoint: list[set[str]] = []
         for item in eligible:
             parameters = item.get("supported_parameters", [])
-            if isinstance(parameters, list) and "structured_outputs" in parameters:
+            supported = set(parameters) if isinstance(parameters, list) else set()
+            missing = set(REQUIRED_GENERATION_PARAMETERS) - supported
+            missing_by_endpoint.append(missing)
+            if not missing:
                 capable.append(str(item.get("tag") or item.get("name") or "unknown"))
-        return capable
+        if capable:
+            return capable, ()
+        closest = min(
+            missing_by_endpoint or [set(REQUIRED_GENERATION_PARAMETERS)],
+            key=lambda values: (len(values), sorted(values)),
+        )
+        return [], tuple(sorted(closest))

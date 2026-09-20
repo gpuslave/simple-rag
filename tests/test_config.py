@@ -13,6 +13,10 @@ path = "documents"
 [models]
 generation = "vendor/generation"
 embedding = "vendor/embedding"
+[generation]
+reasoning_effort = "low"
+temperature = 0.2
+max_tokens = 8192
 """
         + extra,
         encoding="utf-8",
@@ -28,7 +32,10 @@ def test_loads_required_settings_and_defaults(tmp_path: Path) -> None:
     assert config.corpus_path == Path("documents")
     assert config.gateway_base_url == DEFAULT_GATEWAY_URL
     assert config.api_key == "secret"
-    assert config.provider_routing is None
+    assert config.generation.reasoning_effort == "low"
+    assert config.generation.temperature == 0.2
+    assert config.generation.max_tokens == 8192
+    assert config.generation.provider is None
     assert config.chunking.size == 800
     assert config.chunking.overlap == 100
     assert config.retrieval.candidate_limit == 30
@@ -50,9 +57,9 @@ country = "ru"
 
     config = load_config(path, {"ROUTERAI_API_KEY": "secret"})
 
-    assert config.provider_routing is not None
-    assert config.provider_routing.only == ("provider-a",)
-    assert config.provider_routing.allow_fallbacks is False
+    assert config.generation.provider is not None
+    assert config.generation.provider.only == ("provider-a",)
+    assert config.generation.provider.allow_fallbacks is False
 
 
 def test_missing_secret_is_actionable_and_never_prints_other_environment(
@@ -74,6 +81,56 @@ def test_missing_model_is_actionable(tmp_path: Path) -> None:
     path.write_text('[corpus]\npath = "documents"\n', encoding="utf-8")
 
     with pytest.raises(ConfigurationError, match="generation_model"):
+        load_config(path, {"ROUTERAI_API_KEY": "secret"})
+
+
+@pytest.mark.parametrize(
+    ("generation", "missing"),
+    [
+        ("temperature = 0.2\nmax_tokens = 8192", "reasoning_effort"),
+        ('reasoning_effort = "low"\nmax_tokens = 8192', "temperature"),
+        ('reasoning_effort = "low"\ntemperature = 0.2', "max_tokens"),
+    ],
+)
+def test_requires_explicit_generation_settings(
+    tmp_path: Path, generation: str, missing: str
+) -> None:
+    path = tmp_path / "rag.toml"
+    path.write_text(
+        '[corpus]\npath = "documents"\n[models]\ngeneration = "a/b"\n'
+        f'embedding = "c/d"\n[generation]\n{generation}\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigurationError, match=missing):
+        load_config(path, {"ROUTERAI_API_KEY": "secret"})
+
+
+@pytest.mark.parametrize(
+    ("settings", "message"),
+    [
+        (
+            'reasoning_effort = "medium"\ntemperature = 0.2\nmax_tokens = 8192',
+            "reasoning_effort",
+        ),
+        (
+            'reasoning_effort = "low"\ntemperature = 2.1\nmax_tokens = 8192',
+            "temperature",
+        ),
+        ('reasoning_effort = "low"\ntemperature = 0.2\nmax_tokens = 0', "max_tokens"),
+    ],
+)
+def test_rejects_invalid_generation_settings(
+    tmp_path: Path, settings: str, message: str
+) -> None:
+    path = tmp_path / "rag.toml"
+    path.write_text(
+        '[corpus]\npath = "documents"\n[models]\ngeneration = "a/b"\n'
+        f'embedding = "c/d"\n[generation]\n{settings}\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigurationError, match=message):
         load_config(path, {"ROUTERAI_API_KEY": "secret"})
 
 

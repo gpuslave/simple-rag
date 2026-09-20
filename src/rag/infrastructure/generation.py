@@ -20,17 +20,20 @@ If the evidence does not support an answer, return insufficient_evidence with no
 
 class RouterAIAnswerGenerator:
     def __init__(self, config: AppConfig) -> None:
-        extra_body = None
-        if config.provider_routing is not None:
-            extra_body = {
-                "provider": config.provider_routing.model_dump(
-                    mode="json", exclude_none=True
-                )
-            }
+        generation = config.generation
+        extra_body: dict[str, object] = {
+            "reasoning": {"effort": generation.reasoning_effort},
+            "max_tokens": generation.max_tokens,
+        }
+        if generation.provider is not None:
+            extra_body["provider"] = generation.provider.model_dump(
+                mode="json", exclude_none=True
+            )
         model = ChatOpenAI(
             model=config.generation_model,
             base_url=config.gateway_base_url,
             api_key=SecretStr(config.api_key),
+            temperature=generation.temperature,
             timeout=60.0,
             max_retries=2,
             extra_body=extra_body,

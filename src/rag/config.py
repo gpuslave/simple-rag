@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -38,6 +38,15 @@ class ProviderRouting(BaseModel):
         if value is not None and not value:
             raise ValueError("provider lists cannot be empty")
         return value
+
+
+class GenerationConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    reasoning_effort: Literal["low", "high", "max"]
+    temperature: float = Field(ge=0.0, le=2.0)
+    max_tokens: int = Field(gt=0)
+    provider: ProviderRouting | None = None
 
 
 class ChunkingConfig(BaseModel):
@@ -79,7 +88,7 @@ class AppConfig(BaseModel):
     state_path: Path = Path(".rag-state")
     chunking: ChunkingConfig = ChunkingConfig()
     retrieval: RetrievalConfig = RetrievalConfig()
-    provider_routing: ProviderRouting | None = None
+    generation: GenerationConfig
     api_key: str = Field(repr=False, min_length=1)
 
     @field_validator("gateway_base_url")
@@ -144,7 +153,7 @@ def load_config(path: Path, environ: dict[str, str] | None = None) -> AppConfig:
         "state_path": state.get("path", ".rag-state"),
         "chunking": chunking,
         "retrieval": retrieval,
-        "provider_routing": generation.get("provider"),
+        "generation": generation,
         "api_key": api_key,
     }
     try:

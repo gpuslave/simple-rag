@@ -43,7 +43,9 @@ def test_cli_never_echoes_api_key(tmp_path: Path) -> None:
 def config_file(tmp_path: Path) -> Path:
     config = tmp_path / "rag.toml"
     config.write_text(
-        '[corpus]\npath = "."\n[models]\ngeneration = "a/b"\nembedding = "c/d"\n',
+        '[corpus]\npath = "."\n[models]\ngeneration = "a/b"\nembedding = "c/d"\n'
+        '[generation]\nreasoning_effort = "low"\ntemperature = 0.2\n'
+        "max_tokens = 8192\n",
         encoding="utf-8",
     )
     return config

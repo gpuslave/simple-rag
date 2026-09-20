@@ -19,6 +19,9 @@ class DoctorReport:
     embedding_model: str
     vector_dimension: int
     structured_output_endpoints: tuple[str, ...]
+    reasoning_effort: str
+    temperature: float
+    max_tokens: int
 
 
 def check_local_paths(config: AppConfig) -> None:
@@ -46,4 +49,7 @@ def run_doctor(config: AppConfig, gateway: ModelGatewayDiagnostics) -> DoctorRep
         embedding_model=config.embedding_model,
         vector_dimension=probe.vector_dimension,
         structured_output_endpoints=probe.structured_output_endpoints,
+        reasoning_effort=config.generation.reasoning_effort,
+        temperature=config.generation.temperature,
+        max_tokens=config.generation.max_tokens,
     )

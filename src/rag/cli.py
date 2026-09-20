@@ -56,6 +56,12 @@ def doctor(
         f"generation model: {report.generation_model} (strict structured output)"
     )
     typer.echo(
+        "generation parameters: "
+        f"reasoning={report.reasoning_effort}, "
+        f"temperature={report.temperature}, "
+        f"max tokens={report.max_tokens}"
+    )
+    typer.echo(
         f"embedding model: {report.embedding_model} ({report.vector_dimension} dimensions)"
     )
 

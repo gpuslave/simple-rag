@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from rag.config import AppConfig, ProviderRouting
+from rag.config import AppConfig, GenerationConfig, ProviderRouting
 from rag.domain import AnswerStatus, Chunk, Claim, GeneratedAnswer, RetrievedChunk
 from rag.infrastructure.generation import RouterAIAnswerGenerator
 from rag.ports import AnswerGenerationError
@@ -36,7 +36,12 @@ def config() -> AppConfig:
         generation_model="vendor/generation",
         embedding_model="vendor/embedding",
         api_key="secret",
-        provider_routing=ProviderRouting(only=("provider-a",), allow_fallbacks=False),
+        generation=GenerationConfig(
+            reasoning_effort="low",
+            temperature=0.2,
+            max_tokens=8192,
+            provider=ProviderRouting(only=("provider-a",), allow_fallbacks=False),
+        ),
     )
 
 
@@ -78,8 +83,16 @@ def test_generation_uses_strict_schema_and_sends_only_question_and_evidence(
     assert actual == result
     assert captured["structured_kwargs"] == {"method": "json_schema", "strict": True}
     assert captured["kwargs"]["extra_body"] == {
-        "provider": {"only": ["provider-a"], "allow_fallbacks": False}
+        "reasoning": {"effort": "low"},
+        "max_tokens": 8192,
+        "provider": {"only": ["provider-a"], "allow_fallbacks": False},
     }
+    assert captured["kwargs"]["temperature"] == 0.2
+    assert "top_p" not in captured["kwargs"]
+    assert "seed" not in captured["kwargs"]
+    assert "frequency_penalty" not in captured["kwargs"]
+    assert "presence_penalty" not in captured["kwargs"]
+    assert "include_reasoning" not in captured["kwargs"]["extra_body"]
     messages = runnable.input
     assert "outside knowledge" in messages[0][1]
     request = json.loads(messages[1][1])
@@ -117,3 +130,35 @@ def test_generation_wraps_malformed_model_output(
         generator.generate("What?", (evidence(),))
 
     assert "malformed secret response" not in str(error.value)
+
+
+def test_generation_body_without_provider_routing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+    runnable = FakeRunnable(
+        GeneratedAnswer(status=AnswerStatus.INSUFFICIENT_EVIDENCE, claims=())
+    )
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs: Any) -> None:
+            captured.update(kwargs)
+
+        def with_structured_output(self, schema: Any, **kwargs: Any) -> FakeRunnable:
+            return runnable
+
+    monkeypatch.setattr("rag.infrastructure.generation.ChatOpenAI", FakeChatOpenAI)
+    settings = config().model_copy(
+        update={
+            "generation": GenerationConfig(
+                reasoning_effort="low", temperature=0.2, max_tokens=8192
+            )
+        }
+    )
+
+    RouterAIAnswerGenerator(settings)
+
+    assert captured["extra_body"] == {
+        "reasoning": {"effort": "low"},
+        "max_tokens": 8192,
+    }
