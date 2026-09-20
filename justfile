@@ -39,7 +39,7 @@ typecheck:
 doctor config="rag.toml.example":
     uv run --locked rag doctor --config "{{ config }}"
 
-# Index PDFs from the configured corpus into local Qdrant.
+# Synchronize the authoritative PDF corpus into local Qdrant.
 sync config="rag.toml.example" *args:
     uv run --locked rag sync --config "{{ config }}" {{ args }}
 

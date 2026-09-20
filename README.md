@@ -26,7 +26,8 @@ just format                # apply safe lint fixes and formatting
 just typecheck             # run strict static type checks
 just doctor                # run live readiness checks
 just doctor rag.toml       # use another configuration file
-just sync                  # index the configured PDF corpus
+just sync                  # synchronize the configured PDF corpus
+just sync rag.toml --dry-run # preview additions, updates, and removals
 just sync rag.toml --json  # emit a machine-readable sync report
 just check                 # run every offline CI check
 just build                 # build wheel and source package
@@ -44,5 +45,7 @@ just doctor rag.toml
 `doctor` checks that the corpus exists, local state is writable, an eligible generation endpoint advertises strict structured outputs, and the embedding model returns a non-empty numeric vector. The embedding probe is a live API request.
 
 Provider routing under `[generation.provider]` is optional. Omitting the table leaves RouterAI routing unrestricted.
+
+`sync` recursively treats the configured corpus as authoritative. It adds and updates PDFs before removing older versions, skips unchanged content without embedding it, and removes missing PDFs only after every present PDF succeeds. Use `--dry-run` to inspect the same human or JSON change report without modifying Qdrant.
 
 Architecture terminology is in [CONTEXT.md](CONTEXT.md); decisions are in [docs/adr](docs/adr).

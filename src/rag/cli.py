@@ -72,12 +72,15 @@ def _build_synchronizer(config: AppConfig) -> SyncCorpus:
 
 
 def _render_sync_report(report: SyncReport) -> None:
+    typer.echo(f"mode: {'dry-run' if report.dry_run else 'apply'}")
     typer.echo(f"indexed documents: {report.indexed_documents}")
     typer.echo(f"unchanged documents: {report.unchanged_documents}")
     typer.echo(f"indexed pages: {report.indexed_pages}")
     typer.echo(f"indexed chunks: {report.indexed_chunks}")
     typer.echo(f"skipped pages: {len(report.skipped_pages)}")
     typer.echo(f"failures: {len(report.failures)}")
+    for change in report.changes:
+        typer.echo(f"{change.outcome}: {change.action}: {change.source_path}")
     for warning in report.warnings:
         typer.echo(f"warning: {warning}", err=True)
     for failure in report.failures:
@@ -97,11 +100,15 @@ def sync_command(
         bool,
         typer.Option("--json", help="Emit the synchronization report as JSON."),
     ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Preview changes without modifying Qdrant."),
+    ] = False,
 ) -> None:
-    """Index PDFs from the configured corpus into local Qdrant."""
+    """Synchronize PDFs from the authoritative corpus into local Qdrant."""
     try:
         config = load_config(config_path)
-        report = _build_synchronizer(config).synchronize()
+        report = _build_synchronizer(config).synchronize(dry_run=dry_run)
     except (ConfigurationError, SyncExecutionError) as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=1) from None

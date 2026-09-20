@@ -4,12 +4,11 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from langchain_core.documents import Document as LangChainDocument
 from langchain_core.embeddings import Embeddings
-from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
+from qdrant_client import models as qdrant_models
 
-from rag.domain import Chunk, SyncStage
+from rag.domain import Chunk, IndexedDocumentVersion, SyncStage
 from rag.infrastructure.embeddings import EmbeddingRequestError
 from rag.ports import SyncOperationError
 
@@ -20,6 +19,69 @@ class LangChainQdrantChunkIndex:
     def __init__(self, state_path: Path, embeddings: Embeddings) -> None:
         self._path = state_path / "qdrant"
         self._embeddings = embeddings
+
+    def inventory(self) -> tuple[IndexedDocumentVersion, ...]:
+        if not self._path.exists():
+            return ()
+        client = QdrantClient(path=str(self._path))
+        try:
+            if not client.collection_exists(COLLECTION_NAME):
+                return ()
+            grouped: dict[tuple[str, str], dict[str, Any]] = {}
+            offset: Any = None
+            while True:
+                records, offset = client.scroll(
+                    collection_name=COLLECTION_NAME,
+                    limit=256,
+                    offset=offset,
+                    with_payload=True,
+                    with_vectors=False,
+                )
+                for record in records:
+                    payload = record.payload or {}
+                    metadata = payload.get("metadata")
+                    if not isinstance(metadata, dict):
+                        continue
+                    document_id = metadata.get("document_id")
+                    content_hash = metadata.get("content_hash")
+                    source_path = metadata.get("source_path")
+                    filename = metadata.get("filename")
+                    if not isinstance(document_id, str):
+                        continue
+                    if not isinstance(content_hash, str):
+                        continue
+                    if not isinstance(source_path, str):
+                        continue
+                    if not isinstance(filename, str):
+                        continue
+                    key = (document_id, content_hash)
+                    group = grouped.setdefault(
+                        key,
+                        {
+                            "source_path": source_path,
+                            "filename": filename,
+                            "chunk_ids": [],
+                        },
+                    )
+                    group["chunk_ids"].append(str(record.id))
+                if offset is None:
+                    break
+            return tuple(
+                IndexedDocumentVersion(
+                    document_id=document_id,
+                    source_path=Path(str(values["source_path"])),
+                    filename=str(values["filename"]),
+                    content_hash=content_hash,
+                    chunk_ids=tuple(sorted(values["chunk_ids"])),
+                )
+                for (document_id, content_hash), values in sorted(grouped.items())
+            )
+        except Exception as exc:
+            raise SyncOperationError(
+                SyncStage.STORAGE, "unable to inspect the local Qdrant index"
+            ) from exc
+        finally:
+            client.close()
 
     def contains_all(self, chunk_ids: Sequence[str]) -> bool:
         if not chunk_ids or not self._path.exists():
@@ -47,23 +109,36 @@ class LangChainQdrantChunkIndex:
         if not chunks:
             return
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        documents = [self._to_langchain_document(chunk) for chunk in chunks]
-        ids = [chunk.id for chunk in chunks]
-
         try:
-            if self._collection_exists():
-                self._add_to_existing(documents, ids)
-            else:
-                store = QdrantVectorStore.from_documents(
-                    documents=documents,
-                    embedding=self._embeddings,
-                    ids=ids,
-                    path=str(self._path),
+            vectors = self._embeddings.embed_documents([chunk.text for chunk in chunks])
+            if not vectors or any(len(vector) != len(vectors[0]) for vector in vectors):
+                raise ValueError("embedding response has inconsistent dimensions")
+            client = QdrantClient(path=str(self._path))
+            try:
+                if not client.collection_exists(COLLECTION_NAME):
+                    client.create_collection(
+                        collection_name=COLLECTION_NAME,
+                        vectors_config={
+                            "": qdrant_models.VectorParams(
+                                size=len(vectors[0]),
+                                distance=qdrant_models.Distance.COSINE,
+                            )
+                        },
+                    )
+                client.upsert(
                     collection_name=COLLECTION_NAME,
-                    content_payload_key="text",
-                    metadata_payload_key="metadata",
+                    points=[
+                        qdrant_models.PointStruct(
+                            id=chunk.id,
+                            vector={"": vector},
+                            payload=self._to_payload(chunk),
+                        )
+                        for chunk, vector in zip(chunks, vectors, strict=True)
+                    ],
+                    wait=True,
                 )
-                store.client.close()
+            finally:
+                client.close()
         except EmbeddingRequestError as exc:
             raise SyncOperationError(SyncStage.EMBEDDING, str(exc)) from exc
         except Exception as exc:
@@ -71,33 +146,63 @@ class LangChainQdrantChunkIndex:
                 SyncStage.STORAGE, "unable to update the local Qdrant index"
             ) from exc
 
-    def _collection_exists(self) -> bool:
+    def delete_version(self, document_id: str, content_hash: str) -> None:
+        self._delete(self._version_filter(document_id, content_hash))
+
+    def delete_other_versions(self, document_id: str, keep_hash: str) -> None:
+        self._delete(
+            qdrant_models.Filter(
+                must=[self._match("metadata.document_id", document_id)],
+                must_not=[self._match("metadata.content_hash", keep_hash)],
+            )
+        )
+
+    def delete_document(self, document_id: str) -> None:
+        self._delete(
+            qdrant_models.Filter(
+                must=[self._match("metadata.document_id", document_id)]
+            )
+        )
+
+    def _delete(self, points_filter: qdrant_models.Filter) -> None:
         if not self._path.exists():
-            return False
+            return
         client = QdrantClient(path=str(self._path))
         try:
-            return client.collection_exists(COLLECTION_NAME)
+            if not client.collection_exists(COLLECTION_NAME):
+                return
+            client.delete(
+                collection_name=COLLECTION_NAME,
+                points_selector=qdrant_models.FilterSelector(filter=points_filter),
+                wait=True,
+            )
+        except Exception as exc:
+            raise SyncOperationError(
+                SyncStage.STORAGE, "unable to remove data from the local Qdrant index"
+            ) from exc
         finally:
             client.close()
 
-    def _add_to_existing(
-        self, documents: list[LangChainDocument], ids: list[str]
-    ) -> None:
-        client = QdrantClient(path=str(self._path))
-        try:
-            store = QdrantVectorStore(
-                client=client,
-                collection_name=COLLECTION_NAME,
-                embedding=self._embeddings,
-                content_payload_key="text",
-                metadata_payload_key="metadata",
-            )
-            store.add_documents(documents=documents, ids=ids)
-        finally:
-            client.close()
+    @classmethod
+    def _version_filter(
+        cls, document_id: str, content_hash: str
+    ) -> qdrant_models.Filter:
+        return qdrant_models.Filter(
+            must=[
+                cls._match("metadata.document_id", document_id),
+                cls._match("metadata.content_hash", content_hash),
+            ]
+        )
 
     @staticmethod
-    def _to_langchain_document(chunk: Chunk) -> LangChainDocument:
+    def _match(key: str, value: str) -> qdrant_models.FieldCondition:
+        return qdrant_models.FieldCondition(
+            key=key,
+            match=qdrant_models.MatchValue(value=value),
+        )
+
+    @staticmethod
+    def _to_payload(chunk: Chunk) -> dict[str, Any]:
         metadata: dict[str, Any] = {
             "chunk_id": chunk.id,
             "document_id": chunk.document_id,
@@ -108,8 +213,4 @@ class LangChainQdrantChunkIndex:
             "page_label": chunk.page_label,
             "chunk_index": chunk.chunk_index,
         }
-        return LangChainDocument(
-            id=chunk.id,
-            page_content=chunk.text,
-            metadata=metadata,
-        )
+        return {"text": chunk.text, "metadata": metadata}

@@ -23,7 +23,7 @@ def make_pdf(path: Path) -> None:
     pdf.close()  # type: ignore[no-untyped-call]
 
 
-def test_discovers_top_level_pdfs_case_insensitively_without_symlinks(
+def test_discovers_pdfs_recursively_case_insensitively_without_symlinks(
     tmp_path: Path,
 ) -> None:
     upper = tmp_path / "B.PDF"
@@ -35,10 +35,16 @@ def test_discovers_top_level_pdfs_case_insensitively_without_symlinks(
     nested.mkdir()
     (nested / "nested.pdf").write_bytes(b"nested")
     (tmp_path / "linked.pdf").symlink_to(lower)
+    linked_directory = tmp_path / "linked-directory"
+    linked_directory.symlink_to(nested, target_is_directory=True)
 
     documents = LocalCorpusSource(tmp_path).discover()
 
-    assert [document.filename for document in documents] == ["a.pdf", "B.PDF"]
+    assert [document.filename for document in documents] == [
+        "a.pdf",
+        "B.PDF",
+        "nested.pdf",
+    ]
     assert documents[0].source_path == lower.resolve()
     assert documents[0].id == document_id(lower.resolve())
     assert documents[0].content_hash != documents[1].content_hash

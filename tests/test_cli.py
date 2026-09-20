@@ -43,8 +43,10 @@ def config_file(tmp_path: Path) -> Path:
 class StubSynchronizer:
     def __init__(self, report: SyncReport) -> None:
         self.report = report
+        self.dry_run = False
 
     def synchronize(self, *, dry_run: bool = False) -> SyncReport:
+        self.dry_run = dry_run
         return self.report
 
 
@@ -92,3 +94,23 @@ def test_sync_failure_is_rendered_and_exits_nonzero(
     assert result.exit_code == 1
     assert "failures: 1" in result.stdout
     assert "unable to extract broken.pdf" in result.stderr
+
+
+def test_sync_dry_run_is_forwarded_and_rendered(
+    monkeypatch: object, tmp_path: Path
+) -> None:
+    config = config_file(tmp_path)
+    synchronizer = StubSynchronizer(SyncReport(dry_run=True))
+    monkeypatch.setattr(  # type: ignore[attr-defined]
+        "rag.cli._build_synchronizer", lambda _: synchronizer
+    )
+
+    result = runner.invoke(
+        app,
+        ["sync", "--config", str(config), "--dry-run"],
+        env={"ROUTERAI_API_KEY": "secret"},
+    )
+
+    assert result.exit_code == 0
+    assert synchronizer.dry_run is True
+    assert "mode: dry-run" in result.stdout

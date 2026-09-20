@@ -98,12 +98,45 @@ class SyncFailure(DomainModel):
     message: str
 
 
+class SyncAction(StrEnum):
+    ADD = "add"
+    UPDATE = "update"
+    SKIP = "skip"
+    REMOVE = "remove"
+
+
+class SyncOutcome(StrEnum):
+    PLANNED = "planned"
+    COMPLETED = "completed"
+    SKIPPED = "skipped"
+    DEFERRED = "deferred"
+    FAILED = "failed"
+
+
+class SyncChange(DomainModel):
+    action: SyncAction
+    outcome: SyncOutcome
+    source_path: Path
+    content_hash: str | None = None
+    previous_content_hash: str | None = None
+
+
+class IndexedDocumentVersion(DomainModel):
+    document_id: str
+    source_path: Path
+    filename: str
+    content_hash: str
+    chunk_ids: tuple[str, ...]
+
+
 class SyncReport(DomainModel):
+    dry_run: bool = False
     indexed_documents: int = Field(default=0, ge=0)
     unchanged_documents: int = Field(default=0, ge=0)
     indexed_pages: int = Field(default=0, ge=0)
     indexed_chunks: int = Field(default=0, ge=0)
     skipped_pages: tuple[SkippedPage, ...] = ()
+    changes: tuple[SyncChange, ...] = ()
     warnings: tuple[str, ...] = ()
     failures: tuple[SyncFailure, ...] = ()
 

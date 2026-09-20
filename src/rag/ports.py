@@ -8,6 +8,7 @@ from rag.domain import (
     AnswerResult,
     Chunk,
     Document,
+    IndexedDocumentVersion,
     Page,
     RetrievedChunk,
     SyncReport,
@@ -58,9 +59,17 @@ class CorpusSynchronizer(Protocol):
 
 
 class ChunkIndex(Protocol):
+    def inventory(self) -> Sequence[IndexedDocumentVersion]: ...
+
     def contains_all(self, chunk_ids: Sequence[str]) -> bool: ...
 
     def index(self, chunks: Sequence[Chunk]) -> None: ...
+
+    def delete_version(self, document_id: str, content_hash: str) -> None: ...
+
+    def delete_other_versions(self, document_id: str, keep_hash: str) -> None: ...
+
+    def delete_document(self, document_id: str) -> None: ...
 
 
 class SyncOperationError(RuntimeError):

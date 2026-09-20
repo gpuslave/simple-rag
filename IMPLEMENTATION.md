@@ -55,20 +55,20 @@ Source architecture: [PLAN.md](PLAN.md)
 
 **Blocked by:** 02: Index the first PDF into local Qdrant.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Discovery recursively includes case-insensitive PDF extensions and does not follow symlinks.
-- [ ] Canonical paths define document identity, while SHA-256 detects unchanged and changed content.
-- [ ] Unchanged documents are skipped without embedding calls.
-- [ ] A changed document is fully extracted and embedded before its previous indexed version is removed.
-- [ ] Failed uploads clean up partial points for the new version and leave the previous usable version intact.
-- [ ] Successfully processed documents may advance during a partially failed run, but no missing-file deletion occurs unless every present document succeeds.
-- [ ] A successful failure-free run removes documents no longer present in the authoritative directory.
-- [ ] Renaming a PDF is reported and applied as one removal and one addition.
-- [ ] `--dry-run` reports the exact intended additions, updates, skips, warnings, and removals without changing Qdrant or synchronization state.
-- [ ] Repeating a successful synchronization is idempotent.
-- [ ] Human and JSON reports distinguish completed work, deferred removals, warnings, and actionable failures.
-- [ ] Integration tests cover additions, changes, unchanged files, renames, removals, extraction failure, embedding failure, partial upload cleanup, and deferred deletion.
+- [x] Discovery recursively includes case-insensitive PDF extensions and does not follow symlinks.
+- [x] Canonical paths define document identity, while SHA-256 detects unchanged and changed content.
+- [x] Unchanged documents are skipped without embedding calls.
+- [x] A changed document is fully extracted and embedded before its previous indexed version is removed.
+- [x] Failed uploads clean up partial points for the new version and leave the previous usable version intact.
+- [x] Successfully processed documents may advance during a partially failed run, but no missing-file deletion occurs unless every present document succeeds.
+- [x] A successful failure-free run removes documents no longer present in the authoritative directory.
+- [x] Renaming a PDF is reported and applied as one removal and one addition.
+- [x] `--dry-run` reports the exact intended additions, updates, skips, warnings, and removals without changing Qdrant or synchronization state.
+- [x] Repeating a successful synchronization is idempotent.
+- [x] Human and JSON reports distinguish completed work, deferred removals, warnings, and actionable failures.
+- [x] Integration tests cover additions, changes, unchanged files, renames, removals, extraction failure, embedding failure, partial upload cleanup, and deferred deletion.
 
 # 04: Answer one question with validated page citations
 
