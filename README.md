@@ -1,6 +1,10 @@
 # Page-cited RAG CLI
 
-Python 3.12 CLI for a local PDF corpus, RouterAI models, and page-level citations. Ticket 01 establishes the runnable shell and readiness diagnostics; indexing and querying arrive in later tickets.
+[![CI](https://github.com/gpuslave/simple-rag/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gpuslave/simple-rag/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/github/gpuslave/simple-rag/graph/badge.svg?branch=main)](https://codecov.io/github/gpuslave/simple-rag)
+![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
+
+Python 3.12 CLI for a local PDF corpus, RouterAI models, and page-level citations.
 
 ## Development
 
@@ -15,6 +19,7 @@ Run `just` to list every available command:
 ```text
 just setup                 # install locked dependencies
 just test                  # run offline tests
+just coverage              # run offline tests with an 85% coverage floor
 just lint                  # check Python lint rules and formatting
 just format                # apply safe lint fixes and formatting
 just typecheck             # run strict static type checks

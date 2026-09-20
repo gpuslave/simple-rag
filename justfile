@@ -13,6 +13,10 @@ setup:
 test:
     uv run --locked pytest -m "not live"
 
+# Run offline tests with coverage and enforce the minimum threshold.
+coverage:
+    uv run --locked pytest -m "not live" --cov=rag --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=85
+
 # Check Python lint rules and formatting without changing files.
 lint:
     uv run --locked ruff check src tests
@@ -37,7 +41,7 @@ check:
     uv run --locked ruff check src tests
     uv run --locked ruff format --check src tests
     uv run --locked mypy src tests
-    uv run --locked pytest -m "not live"
+    uv run --locked pytest -m "not live" --cov=rag --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=85
     uv run --locked rag --help > /dev/null
 
 # Build the source distribution and wheel.
