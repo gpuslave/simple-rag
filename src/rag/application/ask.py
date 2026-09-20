@@ -3,13 +3,17 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 from rag.domain import (
     AnswerResult,
     AnswerStatus,
-    Citation,
+    Claim,
+    EvidenceCitation,
     GeneratedAnswer,
+    PageReference,
     RetrievedChunk,
+    ValidatedClaim,
 )
 from rag.ports import AnswerGenerator, Retriever
 
@@ -85,6 +89,7 @@ class AnswerQuestion:
             item.source_id: item for item in evidence if item.source_id is not None
         }
         citation_ids: list[str] = []
+        validated_claims: list[ValidatedClaim] = []
         for claim in generated.claims:
             if not claim.text.strip():
                 raise AnswerValidationError("generation model returned an empty claim")
@@ -103,9 +108,16 @@ class AnswerQuestion:
                     )
                 if source_id not in citation_ids:
                     citation_ids.append(source_id)
+            validated_claims.append(
+                ValidatedClaim(
+                    text=claim.text,
+                    source_ids=claim.source_ids,
+                    page_references=AnswerQuestion._page_references(claim, available),
+                )
+            )
 
         citations = tuple(
-            Citation(
+            EvidenceCitation(
                 source_id=source_id,
                 source_path=available[source_id].chunk.source_path,
                 filename=available[source_id].chunk.filename,
@@ -118,6 +130,40 @@ class AnswerQuestion:
         )
         return AnswerResult(
             status=AnswerStatus.ANSWERED,
-            claims=generated.claims,
+            claims=tuple(validated_claims),
             citations=citations,
         )
+
+    @staticmethod
+    def _page_references(
+        claim: Claim,
+        available: dict[str, RetrievedChunk],
+    ) -> tuple[PageReference, ...]:
+        document_order: list[Path] = []
+        pages_by_document: dict[Path, dict[int, list[str]]] = {}
+
+        for source_id in claim.source_ids:
+            chunk = available[source_id].chunk
+            if chunk.source_path not in pages_by_document:
+                document_order.append(chunk.source_path)
+                pages_by_document[chunk.source_path] = {}
+            pages_by_document[chunk.source_path].setdefault(
+                chunk.viewer_page, []
+            ).append(source_id)
+
+        references: list[PageReference] = []
+        for source_path in document_order:
+            pages = pages_by_document[source_path]
+            for viewer_page in sorted(pages):
+                source_ids = tuple(pages[viewer_page])
+                chunk = available[source_ids[0]].chunk
+                references.append(
+                    PageReference(
+                        source_path=chunk.source_path,
+                        filename=chunk.filename,
+                        viewer_page=chunk.viewer_page,
+                        page_label=chunk.page_label,
+                        source_ids=source_ids,
+                    )
+                )
+        return tuple(references)

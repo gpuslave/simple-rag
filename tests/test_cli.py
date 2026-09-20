@@ -7,11 +7,12 @@ from rag.cli import app
 from rag.domain import (
     AnswerResult,
     AnswerStatus,
-    Citation,
-    Claim,
+    EvidenceCitation,
+    PageReference,
     SyncFailure,
     SyncReport,
     SyncStage,
+    ValidatedClaim,
 )
 
 runner = CliRunner()
@@ -142,9 +143,29 @@ def test_sync_dry_run_is_forwarded_and_rendered(
 def cited_answer() -> AnswerResult:
     return AnswerResult(
         status=AnswerStatus.ANSWERED,
-        claims=(Claim(text="Первый факт.", source_ids=("S1", "S2")),),
+        claims=(
+            ValidatedClaim(
+                text="Первый факт.",
+                source_ids=("S1", "S2"),
+                page_references=(
+                    PageReference(
+                        source_path=Path("/corpus/lesson.pdf"),
+                        filename="lesson.pdf",
+                        viewer_page=2,
+                        page_label="ii",
+                        source_ids=("S1",),
+                    ),
+                    PageReference(
+                        source_path=Path("/corpus/appendix.pdf"),
+                        filename="appendix.pdf",
+                        viewer_page=4,
+                        source_ids=("S2",),
+                    ),
+                ),
+            ),
+        ),
         citations=(
-            Citation(
+            EvidenceCitation(
                 source_id="S1",
                 source_path=Path("/corpus/lesson.pdf"),
                 filename="lesson.pdf",
@@ -153,7 +174,7 @@ def cited_answer() -> AnswerResult:
                 score=0.9,
                 excerpt="first excerpt",
             ),
-            Citation(
+            EvidenceCitation(
                 source_id="S2",
                 source_path=Path("/corpus/appendix.pdf"),
                 filename="appendix.pdf",
@@ -206,6 +227,8 @@ def test_ask_json_contains_citations_and_models(
     assert '"source_path": "/corpus/lesson.pdf"' in result.stdout
     assert '"viewer_page": 2' in result.stdout
     assert '"page_label": "ii"' in result.stdout
+    assert '"page_references"' in result.stdout
+    assert '"source_ids": ["S1"]' in result.stdout
     assert '"score": 0.9' in result.stdout
     assert '"excerpt": "first excerpt"' in result.stdout
     assert '"generation": "a/b"' in result.stdout

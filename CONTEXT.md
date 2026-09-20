@@ -9,6 +9,6 @@
 - **Embedding Model:** The configured RouterAI model that maps document chunks and questions into vectors.
 - **Generation Model:** The configured RouterAI model that turns retrieved evidence into a structured Russian answer.
 - **Model Gateway:** The OpenAI-compatible RouterAI API used to reach embedding and generation models.
-- **Claim:** One factual statement in an answer, linked to one or more request-local source IDs.
-- **Citation:** Validated source metadata that resolves a source ID to a PDF path, viewer page, optional label, score, and excerpt.
-
+- **Claim:** One factual statement in an answer, linked to one or more evidence citations.
+- **Evidence Citation:** A validated link from a claim to one retrieved chunk, retaining its request-local source ID, score, and excerpt.
+- **Page Reference:** A user-facing PDF page reference derived from one or more evidence citations on that page.

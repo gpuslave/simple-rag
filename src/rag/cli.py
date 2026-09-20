@@ -153,18 +153,16 @@ def _render_answer(result: AnswerResult) -> None:
         typer.echo(INSUFFICIENT_EVIDENCE_MESSAGE)
         return
 
-    citations = {citation.source_id: citation for citation in result.citations}
     for claim in result.claims:
         rendered: list[str] = []
-        for source_id in claim.source_ids:
-            citation = citations[source_id]
+        for reference in claim.page_references:
             label = (
-                f", label {citation.page_label}"
-                if citation.page_label is not None
+                f", label {reference.page_label}"
+                if reference.page_label is not None
                 else ""
             )
             rendered.append(
-                f"[{citation.filename}, PDF p. {citation.viewer_page}{label}]"
+                f"[{reference.filename}, PDF p. {reference.viewer_page}{label}]"
             )
         typer.echo(f"{claim.text} {' '.join(rendered)}")
 

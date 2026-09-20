@@ -49,7 +49,21 @@ class Claim(DomainModel):
     source_ids: tuple[str, ...]
 
 
-class Citation(DomainModel):
+class PageReference(DomainModel):
+    source_path: Path
+    filename: str
+    viewer_page: int = Field(ge=1)
+    page_label: str | None = None
+    source_ids: tuple[str, ...]
+
+
+class ValidatedClaim(DomainModel):
+    text: str
+    source_ids: tuple[str, ...]
+    page_references: tuple[PageReference, ...]
+
+
+class EvidenceCitation(DomainModel):
     source_id: str
     source_path: Path
     filename: str
@@ -73,8 +87,8 @@ class GeneratedAnswer(DomainModel):
 
 class AnswerResult(DomainModel):
     status: AnswerStatus
-    claims: tuple[Claim, ...] = ()
-    citations: tuple[Citation, ...] = ()
+    claims: tuple[ValidatedClaim, ...] = ()
+    citations: tuple[EvidenceCitation, ...] = ()
 
     @model_validator(mode="after")
     def status_matches_claims(self) -> AnswerResult:
