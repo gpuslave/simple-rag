@@ -1,0 +1,26 @@
+[corpus]
+path = "/data/corpus"
+
+[models]
+generation = "z-ai/glm-5.3-flash"
+embedding = "baai/bge-m3"
+
+[gateway]
+base_url = "https://routerai.ru/api/v1"
+
+[state]
+path = "/data/state"
+
+[chunking]
+size = 800
+overlap = 100
+
+[retrieval]
+candidate_limit = 30
+max_chunks_per_page = 3
+evidence_limit = 15
+
+[generation]
+reasoning_effort = "high"
+temperature = 0.2
+max_tokens = 8192

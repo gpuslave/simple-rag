@@ -153,6 +153,7 @@ activemq-data/
 .envrc
 .venv
 rag.toml
+!container/rag.toml
 .rag-state/
 env/
 venv/
