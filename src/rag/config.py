@@ -5,7 +5,14 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 DEFAULT_GATEWAY_URL = "https://routerai.ru/api/v1"
 
@@ -33,6 +40,19 @@ class ProviderRouting(BaseModel):
         return value
 
 
+class ChunkingConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    size: int = Field(default=800, gt=0)
+    overlap: int = Field(default=100, ge=0)
+
+    @model_validator(mode="after")
+    def overlap_is_smaller_than_size(self) -> ChunkingConfig:
+        if self.overlap >= self.size:
+            raise ValueError("overlap must be smaller than size")
+        return self
+
+
 class AppConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -41,6 +61,7 @@ class AppConfig(BaseModel):
     embedding_model: str = Field(min_length=1)
     gateway_base_url: str = DEFAULT_GATEWAY_URL
     state_path: Path = Path(".rag-state")
+    chunking: ChunkingConfig = ChunkingConfig()
     provider_routing: ProviderRouting | None = None
     api_key: str = Field(repr=False, min_length=1)
 
@@ -75,9 +96,10 @@ def load_config(path: Path, environ: dict[str, str] | None = None) -> AppConfig:
     models = _table(data, "models")
     gateway = _table(data, "gateway")
     state = _table(data, "state")
+    chunking = _table(data, "chunking")
     generation = _table(data, "generation")
 
-    allowed = {"corpus", "models", "gateway", "state", "generation"}
+    allowed = {"corpus", "models", "gateway", "state", "chunking", "generation"}
     unknown = sorted(set(data) - allowed)
     if unknown:
         raise ConfigurationError(f"unknown top-level setting: {unknown[0]}")
@@ -94,6 +116,7 @@ def load_config(path: Path, environ: dict[str, str] | None = None) -> AppConfig:
         "embedding_model": models.get("embedding"),
         "gateway_base_url": gateway.get("base_url", DEFAULT_GATEWAY_URL),
         "state_path": state.get("path", ".rag-state"),
+        "chunking": chunking,
         "provider_routing": generation.get("provider"),
         "api_key": api_key,
     }

@@ -9,7 +9,10 @@ from rag.domain.models import (
     IndexFingerprint,
     Page,
     RetrievedChunk,
+    SkippedPage,
+    SyncFailure,
     SyncReport,
+    SyncStage,
 )
 
 __all__ = [
@@ -21,5 +24,8 @@ __all__ = [
     "IndexFingerprint",
     "Page",
     "RetrievedChunk",
+    "SkippedPage",
+    "SyncFailure",
     "SyncReport",
+    "SyncStage",
 ]

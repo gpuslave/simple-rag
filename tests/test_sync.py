@@ -1,0 +1,192 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
+from pathlib import Path
+
+from langchain_core.embeddings import Embeddings
+from langchain_qdrant import QdrantVectorStore
+from qdrant_client import QdrantClient
+
+from rag.application.sync import SyncCorpus
+from rag.domain import Chunk, Document, Page, SyncStage
+from rag.domain.identity import chunk_id, document_id, page_id
+from rag.infrastructure.embeddings import EmbeddingRequestError
+from rag.infrastructure.qdrant import COLLECTION_NAME, LangChainQdrantChunkIndex
+
+
+class CountingEmbeddings(Embeddings):
+    def __init__(self, *, fail: bool = False) -> None:
+        self.document_calls = 0
+        self.fail = fail
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        self.document_calls += 1
+        if self.fail:
+            raise EmbeddingRequestError("RouterAI document embedding failed")
+        return [self._vector(text) for text in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._vector(text)
+
+    @staticmethod
+    def _vector(text: str) -> list[float]:
+        return [float(len(text)), float(text.count("alpha")), 1.0]
+
+
+class StaticSource:
+    def __init__(self, document: Document) -> None:
+        self.document = document
+
+    def discover(self) -> Sequence[Document]:
+        return [self.document]
+
+
+class StaticExtractor:
+    def __init__(self, pages: Sequence[Page]) -> None:
+        self.pages = pages
+
+    def extract(self, document: Document) -> Sequence[Page]:
+        return self.pages
+
+
+class StaticChunker:
+    def __init__(self, chunks: Sequence[Chunk]) -> None:
+        self.chunks = chunks
+
+    def split(self, document: Document, pages: Sequence[Page]) -> Sequence[Chunk]:
+        return self.chunks
+
+
+def content(tmp_path: Path) -> tuple[Document, tuple[Page, ...], tuple[Chunk, ...]]:
+    source_path = (tmp_path / "source.pdf").resolve()
+    document = Document(
+        id=document_id(source_path),
+        source_path=source_path,
+        filename=source_path.name,
+        content_hash="a" * 64,
+    )
+    page = Page(
+        id=page_id(document, 1),
+        document_id=document.id,
+        viewer_page=1,
+        text="alpha evidence",
+    )
+    empty_page = Page(
+        id=page_id(document, 2),
+        document_id=document.id,
+        viewer_page=2,
+        text="  ",
+    )
+    chunks = (
+        Chunk(
+            id=chunk_id(page, 0, page.text),
+            document_id=document.id,
+            source_path=source_path,
+            filename=source_path.name,
+            content_hash=document.content_hash,
+            viewer_page=1,
+            chunk_index=0,
+            text=page.text,
+        ),
+    )
+    return document, (page, empty_page), chunks
+
+
+def test_persists_retrievable_chunks_and_skips_unchanged_version(
+    tmp_path: Path,
+) -> None:
+    document, pages, chunks = content(tmp_path)
+    embeddings = CountingEmbeddings()
+    index = LangChainQdrantChunkIndex(tmp_path / "state", embeddings)
+    sync = SyncCorpus(
+        StaticSource(document), StaticExtractor(pages), StaticChunker(chunks), index
+    )
+
+    first = sync.synchronize()
+    calls_after_first = embeddings.document_calls
+    second = sync.synchronize()
+
+    assert first.indexed_documents == 1
+    assert first.indexed_pages == 1
+    assert first.indexed_chunks == 1
+    assert first.skipped_pages[0].viewer_page == 2
+    assert first.warnings == ("textless page skipped: source.pdf, PDF p. 2",)
+    assert second.unchanged_documents == 1
+    assert embeddings.document_calls == calls_after_first
+
+    client = QdrantClient(path=str(tmp_path / "state" / "qdrant"))
+    try:
+        collection = client.get_collection(COLLECTION_NAME)
+        vectors = collection.config.params.vectors
+        assert isinstance(vectors, dict)
+        assert vectors[""].size == 3
+        assert client.count(COLLECTION_NAME, exact=True).count == 1
+        records, _ = client.scroll(
+            COLLECTION_NAME, limit=10, with_payload=True, with_vectors=False
+        )
+        assert str(records[0].id) == chunks[0].id
+        assert records[0].payload is not None
+        assert records[0].payload["text"] == "alpha evidence"
+        metadata = records[0].payload["metadata"]
+        assert metadata["document_id"] == document.id
+        assert metadata["source_path"] == str(document.source_path)
+        assert metadata["filename"] == document.filename
+        assert metadata["chunk_index"] == 0
+        store = QdrantVectorStore(
+            client=client,
+            collection_name=COLLECTION_NAME,
+            embedding=embeddings,
+            content_payload_key="text",
+            metadata_payload_key="metadata",
+        )
+        results = store.similarity_search("alpha", k=1)
+        assert results[0].page_content == "alpha evidence"
+        assert results[0].metadata["viewer_page"] == 1
+        assert results[0].metadata["content_hash"] == document.content_hash
+    finally:
+        client.close()
+
+
+def test_embedding_failure_is_reported_without_exposing_details(tmp_path: Path) -> None:
+    document, pages, chunks = content(tmp_path)
+    index = LangChainQdrantChunkIndex(tmp_path / "state", CountingEmbeddings(fail=True))
+    sync = SyncCorpus(
+        StaticSource(document), StaticExtractor(pages), StaticChunker(chunks), index
+    )
+
+    report = sync.synchronize()
+
+    assert report.indexed_documents == 0
+    assert report.failures[0].stage is SyncStage.EMBEDDING
+    assert report.failures[0].message == "RouterAI document embedding failed"
+
+
+def test_partial_chunk_set_is_not_treated_as_unchanged(tmp_path: Path) -> None:
+    document, pages, chunks = content(tmp_path)
+    page = pages[0]
+    second_text = "beta evidence"
+    second = chunks[0].model_copy(
+        update={
+            "id": chunk_id(page, 1, second_text),
+            "chunk_index": 1,
+            "text": second_text,
+        }
+    )
+    embeddings = CountingEmbeddings()
+    index = LangChainQdrantChunkIndex(tmp_path / "state", embeddings)
+    index.index(chunks)
+    sync = SyncCorpus(
+        StaticSource(document),
+        StaticExtractor(pages),
+        StaticChunker((*chunks, second)),
+        index,
+    )
+
+    report = sync.synchronize()
+
+    assert report.indexed_documents == 1
+    client = QdrantClient(path=str(tmp_path / "state" / "qdrant"))
+    try:
+        assert client.count(COLLECTION_NAME, exact=True).count == 2
+    finally:
+        client.close()

@@ -11,9 +11,12 @@ base_url = "https://routerai.ru/api/v1"
 [state]
 path = ".rag-state"
 
+[chunking]
+size = 800
+overlap = 100
+
 # Optional. Delete this whole table to leave RouterAI routing unrestricted.
 # [generation.provider]
 # order = ["z-ai"]
 # allow_fallbacks = true
 # country = "ru"
-

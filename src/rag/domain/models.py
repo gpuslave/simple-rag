@@ -19,6 +19,7 @@ class Document(DomainModel):
 
 
 class Page(DomainModel):
+    id: str
     document_id: str
     viewer_page: int = Field(ge=1)
     label: str | None = None
@@ -77,13 +78,34 @@ class AnswerResult(DomainModel):
         return self
 
 
+class SyncStage(StrEnum):
+    EXTRACTION = "extraction"
+    CHUNKING = "chunking"
+    EMBEDDING = "embedding"
+    STORAGE = "storage"
+
+
+class SkippedPage(DomainModel):
+    source_path: Path
+    viewer_page: int = Field(ge=1)
+    page_label: str | None = None
+    reason: str
+
+
+class SyncFailure(DomainModel):
+    source_path: Path
+    stage: SyncStage
+    message: str
+
+
 class SyncReport(DomainModel):
     indexed_documents: int = Field(default=0, ge=0)
+    unchanged_documents: int = Field(default=0, ge=0)
     indexed_pages: int = Field(default=0, ge=0)
     indexed_chunks: int = Field(default=0, ge=0)
-    skipped_pages: tuple[str, ...] = ()
+    skipped_pages: tuple[SkippedPage, ...] = ()
     warnings: tuple[str, ...] = ()
-    failures: tuple[str, ...] = ()
+    failures: tuple[SyncFailure, ...] = ()
 
 
 class IndexFingerprint(DomainModel):

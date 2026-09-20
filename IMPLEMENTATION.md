@@ -36,18 +36,18 @@ Source architecture: [PLAN.md](PLAN.md)
 
 **Blocked by:** 01: Establish a runnable RAG CLI and configuration contract.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] `rag sync` discovers a PDF in the configured corpus directory and extracts text in page reading order with PyMuPDF.
-- [ ] Textless pages are skipped with visible warnings and are listed in the synchronization report.
-- [ ] Every chunk remains within one PDF page and uses the configured 800-token size and 100-token overlap defaults.
-- [ ] Document, page, chunk, and point identities are deterministic across repeated processing of unchanged content.
-- [ ] RouterAI produces document embeddings through the configured Embedding Model, with raw strings sent through the compatible LangChain adapter.
-- [ ] The first successful embedding determines the vector dimension used to create the persistent local Qdrant collection.
-- [ ] Stored payloads include canonical document identity, source path, filename, content hash, viewer page number, optional PDF page label, chunk index, and chunk text.
-- [ ] Human and `--json` synchronization reports show indexed documents, pages, chunks, skipped pages, and failures.
-- [ ] A second run against the unchanged single document does not create duplicate points.
-- [ ] Tests exercise extraction, page labels, textless pages, chunk boundaries, deterministic IDs, embedding failures, and persistent retrieval from local Qdrant.
+- [x] `rag sync` discovers a PDF in the configured corpus directory and extracts text in page reading order with PyMuPDF.
+- [x] Textless pages are skipped with visible warnings and are listed in the synchronization report.
+- [x] Every chunk remains within one PDF page and uses the configured 800-token size and 100-token overlap defaults.
+- [x] Document, page, chunk, and point identities are deterministic across repeated processing of unchanged content.
+- [x] RouterAI produces document embeddings through the configured Embedding Model, with raw strings sent through the compatible LangChain adapter.
+- [x] The first successful embedding determines the vector dimension used to create the persistent local Qdrant collection.
+- [x] Stored payloads include canonical document identity, source path, filename, content hash, viewer page number, optional PDF page label, chunk index, and chunk text.
+- [x] Human and `--json` synchronization reports show indexed documents, pages, chunks, skipped pages, and failures.
+- [x] A second run against the unchanged single document does not create duplicate points.
+- [x] Tests exercise extraction, page labels, textless pages, chunk boundaries, deterministic IDs, embedding failures, and persistent retrieval from local Qdrant.
 
 # 03: Safely synchronize the authoritative PDF directory
 

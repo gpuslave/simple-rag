@@ -13,6 +13,10 @@ setup:
 test:
     uv run --locked pytest -m "not live"
 
+# Run opt-in tests that call RouterAI and require local credentials.
+test-live:
+    uv run --locked pytest -m "live"
+
 # Run offline tests with coverage and enforce the minimum threshold.
 coverage:
     uv run --locked pytest -m "not live" --cov=rag --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=85
@@ -34,6 +38,10 @@ typecheck:
 # Run live local and RouterAI readiness checks.
 doctor config="rag.toml.example":
     uv run --locked rag doctor --config "{{ config }}"
+
+# Index PDFs from the configured corpus into local Qdrant.
+sync config="rag.toml.example" *args:
+    uv run --locked rag sync --config "{{ config }}" {{ args }}
 
 # Verify the lockfile and run all offline checks.
 check:

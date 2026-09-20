@@ -12,8 +12,14 @@
         let pkgs = import nixpkgs { inherit system; };
         in {
           default = pkgs.mkShell {
-            packages = [ pkgs.just pkgs.python312 pkgs.uv ];
+            packages = [
+              pkgs.just
+              pkgs.python312
+              pkgs.stdenv.cc.cc.lib
+              pkgs.uv
+            ];
             env.UV_PYTHON_DOWNLOADS = "never";
+            env.LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ];
           };
         });
     };

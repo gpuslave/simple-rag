@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Protocol
 
-from rag.domain import AnswerResult, Chunk, Page, RetrievedChunk, SyncReport
+from rag.domain import (
+    AnswerResult,
+    Chunk,
+    Document,
+    Page,
+    RetrievedChunk,
+    SyncReport,
+    SyncStage,
+)
 
 
 @dataclass(frozen=True)
@@ -18,8 +25,16 @@ class ModelGatewayDiagnostics(Protocol):
     def probe(self) -> GatewayProbe: ...
 
 
+class CorpusSource(Protocol):
+    def discover(self) -> Sequence[Document]: ...
+
+
 class PdfExtractor(Protocol):
-    def extract(self, source_path: Path) -> Sequence[Page]: ...
+    def extract(self, document: Document) -> Sequence[Page]: ...
+
+
+class PageChunker(Protocol):
+    def split(self, document: Document, pages: Sequence[Page]) -> Sequence[Chunk]: ...
 
 
 class EmbeddingProvider(Protocol):
@@ -42,7 +57,17 @@ class CorpusSynchronizer(Protocol):
     def synchronize(self, *, dry_run: bool = False) -> SyncReport: ...
 
 
-class ChunkStore(Protocol):
-    def upsert(
-        self, chunks: Sequence[Chunk], vectors: Sequence[Sequence[float]]
-    ) -> None: ...
+class ChunkIndex(Protocol):
+    def contains_all(self, chunk_ids: Sequence[str]) -> bool: ...
+
+    def index(self, chunks: Sequence[Chunk]) -> None: ...
+
+
+class SyncOperationError(RuntimeError):
+    def __init__(self, stage: SyncStage, message: str):
+        super().__init__(message)
+        self.stage = stage
+
+
+class CorpusSourceError(RuntimeError):
+    """A safe-to-display corpus discovery failure."""

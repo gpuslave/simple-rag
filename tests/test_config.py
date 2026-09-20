@@ -29,6 +29,8 @@ def test_loads_required_settings_and_defaults(tmp_path: Path) -> None:
     assert config.gateway_base_url == DEFAULT_GATEWAY_URL
     assert config.api_key == "secret"
     assert config.provider_routing is None
+    assert config.chunking.size == 800
+    assert config.chunking.overlap == 100
 
 
 def test_loads_optional_provider_routing(tmp_path: Path) -> None:
@@ -69,4 +71,22 @@ def test_missing_model_is_actionable(tmp_path: Path) -> None:
     path.write_text('[corpus]\npath = "documents"\n', encoding="utf-8")
 
     with pytest.raises(ConfigurationError, match="generation_model"):
+        load_config(path, {"ROUTERAI_API_KEY": "secret"})
+
+
+def test_loads_chunking_settings(tmp_path: Path) -> None:
+    path = tmp_path / "rag.toml"
+    write_config(path, "\n[chunking]\nsize = 40\noverlap = 5\n")
+
+    config = load_config(path, {"ROUTERAI_API_KEY": "secret"})
+
+    assert config.chunking.size == 40
+    assert config.chunking.overlap == 5
+
+
+def test_rejects_chunk_overlap_equal_to_size(tmp_path: Path) -> None:
+    path = tmp_path / "rag.toml"
+    write_config(path, "\n[chunking]\nsize = 10\noverlap = 10\n")
+
+    with pytest.raises(ConfigurationError, match="overlap must be smaller"):
         load_config(path, {"ROUTERAI_API_KEY": "secret"})

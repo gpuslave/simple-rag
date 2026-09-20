@@ -19,12 +19,15 @@ Run `just` to list every available command:
 ```text
 just setup                 # install locked dependencies
 just test                  # run offline tests
+just test-live             # run opt-in RouterAI integration tests
 just coverage              # run offline tests with an 85% coverage floor
 just lint                  # check Python lint rules and formatting
 just format                # apply safe lint fixes and formatting
 just typecheck             # run strict static type checks
 just doctor                # run live readiness checks
 just doctor rag.toml       # use another configuration file
+just sync                  # index the configured PDF corpus
+just sync rag.toml --json  # emit a machine-readable sync report
 just check                 # run every offline CI check
 just build                 # build wheel and source package
 ```
